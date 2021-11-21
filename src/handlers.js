@@ -1,6 +1,7 @@
 /*
 	The implementations of each event listener will be here.
 */
+const logIt = require('./logger').logIt;
 
 const requestHandler = function (request, response) {
 	response.setHeader('Content-Type', 'text/plain');
@@ -9,7 +10,7 @@ const requestHandler = function (request, response) {
 };
 
 const listeningHandler = function() {
-	console.log(`Server is running on http://${host}:${port}`);
+	logIt('info', `Server is running on http://${host}:${port}`, true);
 };
 
 module.exports.request = requestHandler;

@@ -5,11 +5,12 @@
 const http = require('http');
 
 const params = require('./globalParameters');
+const logIt = require('./logger').logIt;
 const handlers = require('./handlers');
 
 function getArgs() {
 	if (process.argv.length !== 4) {
-		console.log('Input has to be <hostname> <port>');
+		logIt('error', 'Input has to be <hostname> <port>', true);
 		process.exit(1);
 	}
 
