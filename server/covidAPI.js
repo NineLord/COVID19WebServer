@@ -51,6 +51,32 @@ function query(route, options) {
 	});
 }
 
+/**
+ * Convert the server's date to covid19-API conventions.
+ * @param date	<string> a date according to the server format.
+ * @return {string} a date according to covid19-API format.
+ */
+function parseDate(date) {
+	const values = date.split('-');
+	return `${values[2]}-${values[1]}-${values[0]}`;
+}
+
+/**
+ * Convert a string to lowercase except for the first character.
+ * Will be used to convert to covid19-API's county conventions.
+ * @param country	<string> a country name.
+ * @return {string} a country according to covid19-API format.
+ */
+function upperCaseFirstLetterRestLowerCase(country) {
+	return country.charAt(0).toUpperCase() + country.slice(1).toLowerCase();
+}
+
+module.exports = {
+	query: query,
+	parseDate: parseDate,
+	parseCountry: upperCaseFirstLetterRestLowerCase
+};
+
 /*
 // Test for query
 query('cases', {country: 'Israel'})
@@ -69,5 +95,3 @@ query('cases', {country: 'shosho'})
 	.then(msg => console.log('then', JSON.stringify(msg)))
 	.catch(msg => console.log('catch', msg));
 */
-
-module.exports.query = query;

@@ -24,7 +24,7 @@ function getArgs() {
 	};
 }
 
-let {host ,port} = params.debugFlag ? {host: 'hostname', port: 8080} : getArgs();
+const {host ,port} = params.debugFlag ? {host: 'localhost', port: 8073} : getArgs();
 
 // Initialize the server
 const server = http.createServer();
