@@ -24,19 +24,11 @@ function query(route, options) {
 	return new Promise((resolve, reject) => {
 		optionsForHttpsGet.path = params.covidAPIroutesPrefix + `/${route}`;
 
-		// Checking for current input
 		switch (route) {
 			case 'cases':
-				if(!options.hasOwnProperty('country'))
-					reject("Route 'cases' requires 'country' as property in 'options'");
-				// Technically covid's API does support not adding country, but our protocol does require it.
 				optionsForHttpsGet.path += `?country=${options.country}`;
 				break;
 			case 'history':
-				if(!options.hasOwnProperty('country'))
-					reject("Route 'history' requires 'country' as property in 'options'");
-				if(!options.hasOwnProperty('status'))
-					reject("Route 'history' requires 'status' as property in 'options'");
 				optionsForHttpsGet.path += `?country=${options.country}&status=${options.status}`;
 				break;
 			default:
@@ -47,7 +39,13 @@ function query(route, options) {
 		https.get(optionsForHttpsGet, response => {
 			let data = '';
 			response.on('data', chunk => data += chunk);
-			response.on('end', () => resolve(JSON.parse(data)));
+			response.on('end', () => {
+				const jsonData = JSON.parse(data);
+				if (jsonData['All'] === undefined)
+					reject(`Incorrect query input: route=${route}, options=${JSON.stringify(options)}`);
+				else
+					resolve(jsonData);
+			});
 		}).on('error', error => reject(error));
 
 	});
@@ -64,6 +62,10 @@ query('history', {country: 'Israel', status: 'deaths'})
 	.catch(msg => console.log('catch', msg));
 
 query('history', {country: 'Israel', status: 'confirmed'})
+	.then(msg => console.log('then', JSON.stringify(msg)))
+	.catch(msg => console.log('catch', msg));
+
+query('cases', {country: 'shosho'})
 	.then(msg => console.log('then', JSON.stringify(msg)))
 	.catch(msg => console.log('catch', msg));
 */

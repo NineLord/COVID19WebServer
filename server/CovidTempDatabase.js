@@ -11,7 +11,7 @@
 const covidAPI = require('./covidAPI');
 const logger = require('./logger');
 const params = require('./globalParameters');
-const HashMapExpire = require('HashMapExpire');
+const HashMapExpire = require('./HashMapExpire');
 
 
 /*
@@ -45,19 +45,16 @@ class CovidTempDatabase {
 	 * @return {Promise}	Returns with the data or an error.
 	 */
 	getInfo(route, options) {
-		return new Promise((resolve, reject) => {
-			const info = this.#database[route].get(options);
-			if(info === undefined) {
-				covidAPI.query(route, options)
-					.then(queryJson => {
-						const data = CovidTempDatabase.#convertQueryToData(route, options, queryJson); // If it throws, catch() will get it.
-						this.#database[route].set(options, data, params.queryStoringDuration);
-						resolve(data);
-					})
-					.catch(reject);
-			} else
-				resolve(info);
-		});
+		const info = this.#database[route].get(options);
+		if(info === undefined) {
+			return covidAPI.query(route, options)
+				.then(queryJson => {
+					const data = CovidTempDatabase.#convertQueryToData(route, options, queryJson); // If it throws, catch() will get it.
+					this.#database[route].set(options, data, params.queryStoringDuration);
+					return data;
+				});
+		} else
+			return Promise.resolve(info);
 	}
 
 	/**
@@ -95,4 +92,12 @@ class CovidTempDatabase {
 }
 
 // Note: this is a singleton, to protect us from having more than one database.
-module.exports = new CovidTempDatabase();
+//module.exports = new CovidTempDatabase();
+
+/*
+// Test
+const database = new CovidTempDatabase();
+database.getInfo('cases', {country: 'shimi'})
+	.then(output => console.log(`then: ${output}`))
+	.catch(output => console.log(`catch: ${output}`));
+*/
