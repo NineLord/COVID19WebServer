@@ -7,6 +7,10 @@ This project is written in Node.js and was tested on v14.18.1.
 To install it on linux machine run the following:
 > sudo apt install nodejs
 
+Other dependencies:
+* [map-expire](https://www.npmjs.com/package/map-expire):
+  > npm install map-expire
+
 ## How to run the server
 Simply run the main file, like so:
 > node main.js \<hostname\> \<port\>

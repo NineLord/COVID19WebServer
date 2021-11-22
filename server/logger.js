@@ -1,6 +1,11 @@
 /*
 	The logging system will be here.
 	Not yet implemented, only if time constrains will allow it.
+
+	If implemented:
+	*	Need to to have the list of status here exported.
+	* The optional error messages should also be here and exported
+		(so all the messages will be written the same way).
  */
 
 /**
@@ -18,4 +23,44 @@ function logIt(status, message, toPrint) {
 		console.log(`'${status}' :: ${message}`);
 }
 
-module.exports.logIt = logIt;
+/**
+ * This class will be used when throwing an error
+ * and wishing for it to be logged when it's being caught.
+ */
+class LogInfo extends Error {
+	#status;
+	#toPrint;
+
+	constructor(status, message, toPrint) {
+		super(message);
+		this.#status = status;
+		this.#toPrint = toPrint;
+	}
+
+	get status() {
+		return this.#status;
+	}
+
+	get toPrint() {
+		return this.#toPrint;
+	}
+}
+
+/**
+ * When an error is being thrown,
+ * this handler will check if its LogInfo,
+ * otherwise assume its a string.
+ * @param error <LogInfo | string> error to be logged.
+ */
+function handleLogInfo(error) {
+	if (error instanceof LogInfo)
+		logIt(error.status, error.message, error.toPrint);
+	else
+		logIt('error', error, true);
+}
+
+module.exports = {
+	logIt: logIt,
+	LogInfo: LogInfo,
+	catchLogInfo: handleLogInfo
+};

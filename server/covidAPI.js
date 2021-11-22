@@ -1,6 +1,6 @@
 /*
 	This file contains any functionality of getting information from covid-19 API.
-	Only covidTempDatabase.js should be using this module.
+	Only CovidTempDatabase.js should be using this module.
 */
 const https = require('https');
 const params = require('./globalParameters');
@@ -56,6 +56,14 @@ function query(route, options) {
 /*
 // Test for query
 query('cases', {country: 'Israel'})
+	.then(msg => console.log('then', JSON.stringify(msg)))
+	.catch(msg => console.log('catch', msg));
+
+query('history', {country: 'Israel', status: 'deaths'})
+	.then(msg => console.log('then', JSON.stringify(msg)))
+	.catch(msg => console.log('catch', msg));
+
+query('history', {country: 'Israel', status: 'confirmed'})
 	.then(msg => console.log('then', JSON.stringify(msg)))
 	.catch(msg => console.log('catch', msg));
 */

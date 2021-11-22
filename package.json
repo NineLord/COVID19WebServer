@@ -1,0 +1,7 @@
+{
+  "name": "COVID19WebServer",
+  "version": "1.0.0",
+  "dependencies": {
+    "map-expire": "^1.0.2"
+  }
+}
