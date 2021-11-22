@@ -8,8 +8,10 @@ module.exports = {
 																	If it gets longer, make sure it always ends without '/',
 																	for example: '/v1/shimi'. */
 	covidAPIport: 443,
-	queryStoringDuration: 600000 /* How long each query will be cached until its invalid
+	queryStoringDuration: 600000, /* How long each query will be cached until its invalid
 																	(thus needs to query again the API).
 																	The number is in millisecond, so in our case 10 minutes.
 																	According to the API is shouldn't be any lower than 10 minutes. */
+	maxResponseBodySize: 1e6, // Cap for response's body size (~1MB).
+	maxRequestBodySize: 1e6 // Cap for request's body size (~1MB).
 };

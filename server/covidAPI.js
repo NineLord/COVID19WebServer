@@ -20,7 +20,7 @@ const optionsForHttpsGet = {
  * @return {Promise}	a promise that will check if the input is valid, if so, will send https GET to covid19-API.
  * 										which returns the API's output as JSON.
  */
-function query(route, options) {
+async function queryAsync(route, options) {
 	return new Promise((resolve, reject) => {
 		optionsForHttpsGet.path = params.covidAPIroutesPrefix + `/${route}`;
 
@@ -46,7 +46,7 @@ function query(route, options) {
 				else
 					resolve(jsonData);
 			});
-		}).on('error', error => reject(error));
+		}).on('error', reject);
 
 	});
 }
@@ -72,7 +72,7 @@ function upperCaseFirstLetterRestLowerCase(country) {
 }
 
 module.exports = {
-	query: query,
+	queryAsync: queryAsync,
 	parseDate: parseDate,
 	parseCountry: upperCaseFirstLetterRestLowerCase
 };

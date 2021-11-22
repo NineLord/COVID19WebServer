@@ -2,6 +2,7 @@
 	The implementations of each event listener for the server.
 */
 const url = require('url');
+const userDatabase = require('./UserDatabase');
 const covidTempDatabase = require('./CovidTempDatabase');
 const covidAPI = require('./covidAPI');
 const logger = require('./logger');
@@ -18,8 +19,50 @@ Protocol:
 		MONTH is int with 2 digits.
 		YEAR is int with 4 digits.
 	Returns: non negative int.
--
 
+- POST | body(JSON):
+	{
+		"protocol": 'addUser',
+		"username": <string>
+	}
+	Returns: none.
+
+- POST | body(JSON):
+	{
+		"protocol": 'addCountry',
+		"username": <string>,
+		"country": <string>
+	}
+	Returns: none.
+
+- POST | body(JSON):
+	{
+		"protocol": 'removeCountry',
+		"username": <string>,
+		"country": <string>
+	}
+	Returns: none.
+
+- GET | /?protocol=countryList&username=<string>
+	Returns: <string[]>.
+
+- GET | /?protocol=numOfDeath&username=<string>&from=<DAY>-<MONTH>-<YEAR>&to=<DAY>-<MONTH>-<YEAR>
+	Returns: <pair(string, <pair(string, int)[]>)[]>
+	Each country and his number of death each day in range.
+
+- GET | /?protocol=numOfConfirmed&username=<string>&from=<DAY>-<MONTH>-<YEAR>&to=<DAY>-<MONTH>-<YEAR>
+	Returns: <pair(string, <pair(string, int)[]>)[]>
+	Each country and his number of confirmed each day in range.
+
+- GET | /?protocol=highestDeaths&username=<string>&from=<DAY>-<MONTH>-<YEAR>&to=<DAY>-<MONTH>-<YEAR>
+	Returns: <pair(string, string)[]>
+	Each date and his country with highest ratio.
+	(|death cases| / |population|)
+
+- GET | /?protocol=highestConfirmed&username=<string>&from=<DAY>-<MONTH>-<YEAR>&to=<DAY>-<MONTH>-<YEAR>
+	Returns: <pair(string, string)[]>
+	Each date and his country with highest ratio.
+	(|confirmed cases| / |population|)
 */
 
 /**
@@ -70,13 +113,19 @@ function getPreviousDayDate(strCurrDate) {
 
 // The protocol itself, each supported functionality
 // of the protocol will have its own function.
-function protocolDaily(args, response) {
+function protocolDaily(args, request, response) {
 	if(isValidDailyArgs(args)) {
 		const country = covidAPI.parseCountry(args.country);
-		covidTempDatabase.getInfo('history', {country: country, status: 'confirmed'})
+		covidTempDatabase.getInfoAsync('history', {country: country, status: 'confirmed'})
 			.then(data => {
 				const currDateParsed = covidAPI.parseDate(args.date);
 				const prevDateParsed = covidAPI.parseDate(getPreviousDayDate(args.date));
+				const currDateConfirmed = data.dates[currDateParsed];
+				const prevDateConfirmed = data.dates[prevDateParsed];
+				if(currDateConfirmed === undefined)
+					return 0;
+				if(prevDateConfirmed === undefined)
+					return currDateConfirmed;
 				return Math.max(0, data.dates[currDateParsed] - data.dates[prevDateParsed]);
 			})
 			.then(result => respond(response, 'text/plain', 200, {message: result.toString()}))
@@ -85,40 +134,77 @@ function protocolDaily(args, response) {
 		respond(response, 'text/plain', 400, {message: `Incorrect arguments: ${JSON.stringify(args)}.`, error: `protocolDaily: ${JSON.stringify(args)}`})
 }
 
+function protocolCountryList(args, request, response) {
+	// TODO
+}
+
+function protocolNumOfDeath(args, request, response) {
+	// TODO
+}
+
+function protocolNumOfConfirmed(args, request, response) {
+	// TODO
+}
+
+function protocolHighestDeaths(args, request, response) {
+	// TODO
+}
+
+function protocolHighestConfirmed(args, request, response) {
+	// TODO
+}
+
+function protocolAddUser(args, request, response) {
+	// TODO
+}
+
+function protocolAddCountry(args, request, response) {
+	// TODO
+}
+
+function protocolRemoveCountry(args, request, response) {
+	// TODO
+}
+
+const supportedProtocols = {
+	GET: {
+		daily: protocolDaily,
+		countryList: protocolCountryList,
+		numOfDeath: protocolNumOfDeath,
+		numOfConfirmed: protocolNumOfConfirmed,
+		highestDeaths: protocolHighestDeaths,
+		highestConfirmed: protocolHighestConfirmed
+	},
+	POST: {
+		addUser: protocolAddUser,
+		addCountry: protocolAddCountry,
+		removeCountry: protocolRemoveCountry
+	}
+}
+
 // The server's event listeners.
 function requestHandler(request, response) {
+	const method = supportedProtocols[request.method];
+	if(method === undefined) {
+		const msg = `Request with unknown http method: ${request.method}`;
+		respond(response, 'text/plain', 400, {message: msg, error: msg});
+		return;
+	}
+
 	const args = urlToArguments(request.url);
 	if(args.protocol === undefined) {
 		const msg = 'Request without protocol parameter';
 		respond(response, 'text/plain', 400, {message: msg, error: msg});
 		return;
 	}
-	const protocol = args.protocol.toLowerCase();
 
-	switch (request.method) {
-		case 'GET': {
-			switch (protocol) {
-				case 'daily':
-					protocolDaily(args, response);
-					break;
-				default:
-					const msg = `Request with unknown protocol: ${protocol}`;
-					respond(response, 'text/plain', 400, {message: msg, error: msg});
-			}
-			break;
-		}
-		case 'POST': {
-			switch (protocol) {
-				default:
-					const msg = `Request with unknown protocol: ${protocol}`;
-					respond(response, 'text/plain', 400, {message: msg, error: msg});
-			}
-			break;
-		}
-		default:
-			const msg = `Request with unknown http method: ${request.method}`;
-			respond(response, 'text/plain', 400, {message: msg, error: msg});
+	const protocolFunction = method[args.protocol];
+	if(protocolFunction === undefined) {
+		const msg = `Request with unknown protocol: ${args.protocol}`;
+		respond(response, 'text/plain', 400, {message: msg, error: msg});
+		return;
 	}
+	protocolFunction(args, request, response);
 }
 
 function listeningHandler() {

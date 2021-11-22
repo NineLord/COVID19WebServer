@@ -44,17 +44,17 @@ class CovidTempDatabase {
 	 * 													If route is 'history' it should have 'country' and 'status' property.
 	 * @return {Promise}	Returns with the data or an error.
 	 */
-	getInfo(route, options) {
+	async getInfoAsync(route, options) {
 		const info = this.#database[route].get(options);
 		if(info === undefined) {
-			return covidAPI.query(route, options)
+			return covidAPI.queryAsync(route, options)
 				.then(queryJson => {
 					const data = CovidTempDatabase.#convertQueryToData(route, options, queryJson); // If it throws, catch() will get it.
 					this.#database[route].set(options, data, params.queryStoringDuration);
 					return data;
 				});
 		} else
-			return Promise.resolve(info);
+			return info;
 	}
 
 	/**
