@@ -58,6 +58,27 @@ class CovidTempDatabase {
 	}
 
 	/**
+	 * Given countries list, will query covid19-API for each one of them.
+	 * @param countriesIter	<iterator>	iterator of the countries list.
+	 * @param route		<string>	Type of route ('cases', 'history', etc).
+	 * @param options	<object>	If route is 'history' it should have 'status' property.
+	 * @return {Promise}	Returns with all the data or an error.
+	 */
+	async getInfoForListAsync(countriesIter, route, options={}) {
+		let promisesData = [];
+		let currCountry = countriesIter.next();
+
+		while (!currCountry.done) {
+			if(options.hasOwnProperty('status'))
+				promisesData.push(this.getInfoAsync(route, {country: currCountry.value, status: options.status}));
+			else
+				promisesData.push(this.getInfoAsync(route, {country: currCountry.value}));
+			currCountry = countriesIter.next();
+		}
+		return Promise.all(promisesData);
+	}
+
+	/**
 	 * This function is here to filler out unused information that we get from the query,
 	 * so we can save memory space.
 	 * Change this function if in the future we will need other information from the query (or all of it).
@@ -73,18 +94,23 @@ class CovidTempDatabase {
 	static #convertQueryToData(route, options, queryJson) {
 		const innerJson = queryJson['All'];
 
-		switch (route) { // TODO: change this soon, when I know the exact fields that I need.
+		// Note: the 'country' is ALSO saved here (and part of the key).
+		// This is done to be able to know whose country this data belong to
+		// when we query the database for a list of countries.
+		switch (route) {
 			case 'cases':
 				return {
 					confirmed: innerJson['confirmed'],
 					deaths: innerJson['deaths'],
-					country: innerJson['country']
+					country: innerJson['country'],
+					population: innerJson['population']
 				};
 			case 'history':
-				return { // Note: even though it has only 1 property, we will keep it like that to be flexible in the future.
+				return {
 					country: innerJson['country'],
+					population: innerJson['population'],
 					dates: innerJson['dates']
-				}
+				};
 			default:
 				throw new logger.LogInfo('error', 'convertQueryToData: unsupported route', true);
 		}

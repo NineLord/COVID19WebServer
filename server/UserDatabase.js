@@ -115,7 +115,7 @@ class UserDatabase {
 		const countriesSetEntries = countriesSet.entries();
 		const countriesEntriesArray = Array.from(countriesSetEntries);
 		const countriesArray = countriesEntriesArray.map(entry => entry[0]);
-		return `[${countriesArray.toString()}]`
+		return JSON.stringify(countriesArray);
 	}
 
 	/* This data should be persistence between server shutdowns.

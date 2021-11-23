@@ -65,17 +65,6 @@ Protocol:
 	Each date and his country with highest ratio.
 	(|confirmed cases| / |population|)
 */
-/*
-- GET | /?protocol=highestDeaths&username=<string>&from=<DAY>-<MONTH>-<YEAR>&to=<DAY>-<MONTH>-<YEAR>
-	Returns: <pair(string, string)[]>
-	Each date and his country with highest ratio.
-	(|death cases| / |population|)
-
-- GET | /?protocol=highestConfirmed&username=<string>&from=<DAY>-<MONTH>-<YEAR>&to=<DAY>-<MONTH>-<YEAR>
-	Returns: <pair(string, string)[]>
-	Each date and his country with highest ratio.
-	(|confirmed cases| / |population|)
-*/
 
 /**
  * A function to shorten the code.
@@ -184,10 +173,35 @@ function isDatesInOrder(strFromDate, strToDate) {
 	return fromDate <= toDate;
 }
 
+function isDateNotInFuture(strDate) {
+	// Assumes isDateValid(strDate) is true.
+	const pastDate = dateStringToDateClass(strDate);
+	const todayDate = new Date();
+	return pastDate <= todayDate;
+}
+
+function isDateToday(strDate) {
+	const today = new Date();
+	return dateClassToDateString(today) === strDate;
+}
+
 function isValidArgFromToDate(args) {
 	const fistDatePropertyName = 'from';
 	const secondDatePropertyName = 'to';
-	return isValidArgDate(args, fistDatePropertyName) && isValidArgDate(args, secondDatePropertyName) && isDatesInOrder(args[fistDatePropertyName], args[secondDatePropertyName]);
+	return (
+		isValidArgDate(args, fistDatePropertyName)			&&
+		isValidArgDate(args, secondDatePropertyName)		&&
+		isDateNotInFuture(args[secondDatePropertyName])	&&
+		isDatesInOrder(args[fistDatePropertyName], args[secondDatePropertyName])	&&
+	 !isDateToday(args[secondDatePropertyName]) /* TODO:
+	 		In the future this line will be removed as its ok to about a range from the past TIL today.
+	 		However, covid19-API does not include today's data when querying route 'history',
+	 		thus creating a complication, needing to query twice each country and we need to merge the data together.
+	 		calcDeathOrConfirmedAtDate() does not support this merge as of yet.
+
+	 		This change will be done in the future for the lake of time.
+	 */
+	);
 }
 
 // The protocol itself, each supported functionality
@@ -231,16 +245,7 @@ function protocolNumOfStatusCurry(status) {
 	return (args, response) => {
 		if (isValidArgUsername(args) && isValidArgFromToDate(args)) {
 			userDatabase.getCountries(args.username)
-				.then(countriesIter => {
-					let promisesData = [];
-					let currCountry = countriesIter.next();
-
-					while (!currCountry.done) {
-						promisesData.push(covidTempDatabase.getInfoAsync('history', {country: currCountry.value, status: status}));
-						currCountry = countriesIter.next();
-					}
-					return Promise.all(promisesData);
-				})
+				.then(countriesIter => covidTempDatabase.getInfoForListAsync(countriesIter, 'history', {status: status}))
 				.then(countiesData => {
 					const result = {};
 
@@ -278,12 +283,53 @@ function protocolNumOfStatusCurry(status) {
 	};
 }
 
-function protocolHighestDeaths(args, response) {
-	// TODO
-}
+function protocolHighestStatusCurry(status) {
+	if (!covidAPI.isValidStatus(status)) {
+		logger.logIt('error', `Wrong status in protocolHighestStatusCurry() at start up: ${status}`, true);
+		process.exit(1);
+	}
 
-function protocolHighestConfirmed(args, response) {
-	// TODO
+	return (args, response) => {
+		if (isValidArgUsername(args) && isValidArgFromToDate(args)) {
+			userDatabase.getCountries(args.username)
+				.then(countriesIter => covidTempDatabase.getInfoForListAsync(countriesIter, 'history', {status: status}))
+				.then(countiesData => {
+					const result = {};
+
+					const dateFrom = dateStringToDateClass(args.from);
+					const dateTo = dateStringToDateClass(args.to);
+					for (const currDate = new Date(dateFrom.valueOf()); currDate <= dateTo; currDate.setDate(currDate.getDate() + 1)) {
+						const strCurrDate = dateClassToDateString(currDate);
+						const strCovidCurrDate = covidAPI.parseDate(strCurrDate);
+						let maxRatio = 0;
+						for (const data of countiesData) {
+							const currRatio = (data.dates[strCovidCurrDate] / data.population);
+							if(maxRatio < currRatio) {
+								maxRatio = currRatio;
+								result[strCurrDate] = data.country;
+							}
+						}
+					}
+					return result;
+				})
+				.then(result => respond(response, 'application/json', 200, {message: JSON.stringify(result)}))
+				.catch(error => {
+					if (error instanceof logger.LogInfo) {
+						if (error.status === 'user not found')
+							respond(response, 'text/plain', 404, {message: 'User not found', error: error});
+						else if (error.status === 'args not found')
+							respond(response, 'text/plain', 404, {message: 'Country not found', error: error});
+						else
+							respond(response, 'text/plain', 500, {message: 'Something went wrong with the server.', error: error});
+					} else
+						respond(response, 'text/plain', 500, {message: 'Something went wrong with the server.', error: error});
+				});
+		} else
+			respond(response, 'text/plain', 400, {
+				message: `Incorrect arguments: ${JSON.stringify(args)}.`,
+				error: `protocolNumOfDeath: ${JSON.stringify(args)}`
+			});
+	}
 }
 
 function protocolAddUser(args, response) {
@@ -296,11 +342,6 @@ function protocolAddUser(args, response) {
 }
 
 function protocolEditCountryCurry(countryFunc) {
-	if(countryFunc !== userDatabase.addCountry && countryFunc !== userDatabase.deleteCountry) {
-		logger.logIt('error', 'Wrong countryFunc in protocolEditCountryCurry() at start up', true);
-		process.exit(1);
-	}
-
 	return (args, response) => {
 		if(isValidArgUsername(args) && isValidArgCountry(args)) {
 			countryFunc(args.username, args.country)
@@ -323,13 +364,13 @@ const supportedProtocols = {
 		countryList: protocolCountryList,
 		numOfDeath: protocolNumOfStatusCurry('deaths'),
 		numOfConfirmed: protocolNumOfStatusCurry('confirmed'),
-		highestDeaths: protocolHighestDeaths,
-		highestConfirmed: protocolHighestConfirmed
+		highestDeaths: protocolHighestStatusCurry('deaths'),
+		highestConfirmed: protocolHighestStatusCurry('confirmed')
 	},
 	POST: { // All the functions must have signature: (args, response) => void
 		addUser: protocolAddUser,
-		addCountry: protocolEditCountryCurry(userDatabase.addCountry),
-		removeCountry: protocolEditCountryCurry(userDatabase.deleteCountry)
+		addCountry: protocolEditCountryCurry(userDatabase.addCountry.bind(userDatabase)),
+		removeCountry: protocolEditCountryCurry(userDatabase.deleteCountry.bind(userDatabase))
 	}
 }
 
