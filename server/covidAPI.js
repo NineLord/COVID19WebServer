@@ -87,22 +87,3 @@ module.exports = {
 	parseCountry: upperCaseFirstLetterRestLowerCase,
 	isValidStatus: isValidStatus
 };
-
-/*
-// Test for query
-query('cases', {country: 'Israel'})
-	.then(msg => console.log('then', JSON.stringify(msg)))
-	.catch(msg => console.log('catch', msg));
-
-query('history', {country: 'Israel', status: 'deaths'})
-	.then(msg => console.log('then', JSON.stringify(msg)))
-	.catch(msg => console.log('catch', msg));
-
-query('history', {country: 'Israel', status: 'confirmed'})
-	.then(msg => console.log('then', JSON.stringify(msg)))
-	.catch(msg => console.log('catch', msg));
-
-query('cases', {country: 'shosho'})
-	.then(msg => console.log('then', JSON.stringify(msg)))
-	.catch(msg => console.log('catch', msg));
-*/

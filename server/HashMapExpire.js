@@ -40,19 +40,3 @@ class HashMapExpire extends MapExpire {
 }
 
 module.exports = HashMapExpire;
-
-/*
-// Small test to see that it really works
-
-const map = new HashMapExpire();
-const key1 = {
-	s: 1
-};
-
-map.set(key1, 'found', 1000);
-console.log(map.get(key1)); // found
-key1.s = 2;
-console.log(map.get(key1)); // undefined
-console.log(map.get({s: 1})); // found
-console.log(map.get({s: 2})); // undefined
-*/

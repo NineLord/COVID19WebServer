@@ -8,63 +8,6 @@ const covidAPI = require('./covidAPI');
 const logger = require('./logger');
 const params = require('./globalParameters');
 
-/*
-// A small summery of our protocol that being supported.
-// TODO: move this to README.md
-
-Protocol:
-- GET	|	/?protocol=daily&country=<NAME>&date=<DAY>-<MONTH>-<YEAR>
-	whereas:
-		NAME is string, capital letter.
-		DAY is int with 2 digits.
-		MONTH is int with 2 digits.
-		YEAR is int with 4 digits.
-	Returns: non negative int.
-
-- POST | body(JSON):
-	{
-		"protocol": 'addUser',
-		"username": <string>
-	}
-	Returns: none.
-
-- POST | body(JSON):
-	{
-		"protocol": 'addCountry',
-		"username": <string>,
-		"country": <string>
-	}
-	Returns: none.
-
-- POST | body(JSON):
-	{
-		"protocol": 'removeCountry',
-		"username": <string>,
-		"country": <string>
-	}
-	Returns: none.
-
-- GET | /?protocol=countryList&username=<string>
-	Returns: <string[]>.
-
-- GET | /?protocol=numOfDeath&username=<string>&from=<DAY>-<MONTH>-<YEAR>&to=<DAY>-<MONTH>-<YEAR>
-	Returns: <pair(string, <pair(string, int)[]>)[]>
-	Each country and his number of death each day in range.
-
-- GET | /?protocol=numOfConfirmed&username=<string>&from=<DAY>-<MONTH>-<YEAR>&to=<DAY>-<MONTH>-<YEAR>
-	Returns: <pair(string, <pair(string, int)[]>)[]>
-	Each country and his number of confirmed each day in range.
-
-- GET | /?protocol=highestDeaths&username=<string>&from=<DAY>-<MONTH>-<YEAR>&to=<DAY>-<MONTH>-<YEAR>
-	Returns: <pair(string, string)[]>
-	Each date and his country with highest ratio.
-	(|death cases| / |population|)
-
-- GET | /?protocol=highestConfirmed&username=<string>&from=<DAY>-<MONTH>-<YEAR>&to=<DAY>-<MONTH>-<YEAR>
-	Returns: <pair(string, string)[]>
-	Each date and his country with highest ratio.
-	(|confirmed cases| / |population|)
-*/
 
 /**
  * A function to shorten the code.
@@ -457,16 +400,3 @@ module.exports = {
 	request: requestHandler,
 	listening: listeningHandler
 };
-
-/*
-// Test
-urlToArguments('/?food=shimi&type=green');
-urlToArguments('/');
-console.log(urlToArguments('/?protocol=daily&country=Israel&date=15-10-2020'));
-
-isDateValid('shaked 10-10-1000');
-isDateValid(' 10-10-1000');
-isDateValid('10-10-1000');
-isDateValid('10-10-1000 ');
-isDateValid('shaked 10-10-1000 01-01-2000');
-*/

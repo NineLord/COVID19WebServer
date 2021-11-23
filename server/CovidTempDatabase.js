@@ -120,11 +120,3 @@ class CovidTempDatabase {
 
 // Note: this is a singleton, to protect us from having more than one database.
 module.exports = new CovidTempDatabase();
-
-/*
-// Test
-const database = new CovidTempDatabase();
-database.getInfo('cases', {country: 'shimi'})
-	.then(output => console.log(`then: ${output}`))
-	.catch(output => console.log(`catch: ${output}`));
-*/
