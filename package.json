@@ -1,6 +1,9 @@
 {
   "name": "COVID19WebServer",
   "version": "1.0.0",
+  "scripts": {
+    "start": "node ./server/main.js localhost 8080"
+  },
   "dependencies": {
     "map-expire": "^1.0.2"
   }
