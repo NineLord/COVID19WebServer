@@ -77,11 +77,12 @@ class CovidTempDatabase {
 			case 'cases':
 				return {
 					confirmed: innerJson['confirmed'],
-					recovered: innerJson['recovered'],
-					deaths: innerJson['deaths']
+					deaths: innerJson['deaths'],
+					country: innerJson['country']
 				};
 			case 'history':
 				return { // Note: even though it has only 1 property, we will keep it like that to be flexible in the future.
+					country: innerJson['country'],
 					dates: innerJson['dates']
 				}
 			default:

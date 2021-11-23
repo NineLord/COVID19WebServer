@@ -6,6 +6,7 @@ const userDatabase = require('./UserDatabase');
 const covidTempDatabase = require('./CovidTempDatabase');
 const covidAPI = require('./covidAPI');
 const logger = require('./logger');
+const params = require('./globalParameters');
 
 /*
 // A small summery of our protocol that being supported.
@@ -64,6 +65,17 @@ Protocol:
 	Each date and his country with highest ratio.
 	(|confirmed cases| / |population|)
 */
+/*
+- GET | /?protocol=highestDeaths&username=<string>&from=<DAY>-<MONTH>-<YEAR>&to=<DAY>-<MONTH>-<YEAR>
+	Returns: <pair(string, string)[]>
+	Each date and his country with highest ratio.
+	(|death cases| / |population|)
+
+- GET | /?protocol=highestConfirmed&username=<string>&from=<DAY>-<MONTH>-<YEAR>&to=<DAY>-<MONTH>-<YEAR>
+	Returns: <pair(string, string)[]>
+	Each date and his country with highest ratio.
+	(|confirmed cases| / |population|)
+*/
 
 /**
  * A function to shorten the code.
@@ -88,6 +100,17 @@ function respond(response, contentType, statusCode, options={}) {
 }
 
 // Helper functions to convert/check the input.
+/* Note:
+ * Below we have many helper functions to convert
+ * dates from our protocol format to Date class format.
+ * We go about it back and forth, which makes it inefficient.
+ * However, it helps us to keep the code generic in case in the future
+ * our protocol or Date class changes.
+ *
+ * There could be a more efficient way to do it,
+ * but for now, due to the limited time, we will keep it like that.
+ * (TODO)
+ */
 function urlToArguments(reqUrl) {
 	return url.parse(reqUrl, true).query;
 }
@@ -97,100 +120,220 @@ function isDateValid(date) {
 	return reg.test(date);
 }
 
-function isValidDailyArgs(args) {
-	return args.country !== undefined && args.date !== undefined && isDateValid(args.date);
+function isValidArgDate(args, propertyName) {
+	return args[propertyName] !== undefined && isDateValid(args[propertyName]);
 }
 
-function getPreviousDayDate(strCurrDate) {
-	const currDate = new Date(strCurrDate
+function isValidArgCountry(args) {
+	return args.country !== undefined;
+}
+
+function dateStringToDateClass(strDate) {
+	// Assumes isDateValid(strDate) is true.
+	return new Date(strDate
 		.split('-')
 		.reduce((prev, curr) => `${curr}/${prev}`)
 	);
+}
+
+function dateClassToDateString(classDate) {
+	// .slice(-num) to make sure we have num digits.
+	const day		= ('0' +  classDate.getDate()				).slice(-2);
+	const month	= ('0' + (classDate.getMonth() + 1)	).slice(-2); // +1 since Date.getMonth() counts months from 0 not 1.
+	const year	= ('0' +  classDate.getFullYear()		).slice(-4);
+	return `${day}-${month}-${year}`;
+}
+
+function getPreviousDayDate(strCurrDate) {
+	const currDate = dateStringToDateClass(strCurrDate);
 	const prevDate = new Date(currDate.valueOf());
 	prevDate.setDate(currDate.getDate() - 1);
-	return `${('0' + prevDate.getDate()).slice(-2)}-${('0' + (prevDate.getMonth() + 1)).slice(-2)}-${('0' + prevDate.getFullYear()).slice(-4)}`;
+	return dateClassToDateString(prevDate);
+}
+
+/**
+ * Given the dates data (of the deaths cases or the confirmed case)
+ * and a specific date, will calculate the difference between that day
+ * and the previous day.
+ * @param datesJson	<JSON>		the dates data that was saved in CovidTempDatabase.
+ * @param date			<string>	representing the day according to our protocol format.
+ * @return {number}	the difference of cases between the specific date and the previous day.
+ */
+function calcDeathOrConfirmedAtDate(datesJson, date) {
+	const currDateParsed = covidAPI.parseDate(date);
+	const currDateConfirmed = datesJson[currDateParsed];
+	if(currDateConfirmed === undefined)
+		return 0;
+
+	const prevDateParsed = covidAPI.parseDate(getPreviousDayDate(date));
+	const prevDateConfirmed = datesJson[prevDateParsed];
+	if(prevDateConfirmed === undefined)
+		return currDateConfirmed;
+
+	return Math.max(0, datesJson[currDateParsed] - datesJson[prevDateParsed]);
+}
+
+function isValidArgUsername(args) {
+	return args.username !== undefined;
+}
+
+function isDatesInOrder(strFromDate, strToDate) {
+	// Assumes (isDateValid(fromDate) && isDateValid(toDate)) is true.
+	const fromDate = dateStringToDateClass(strFromDate);
+	const toDate = dateStringToDateClass(strToDate);
+	return fromDate <= toDate;
+}
+
+function isValidArgFromToDate(args) {
+	const fistDatePropertyName = 'from';
+	const secondDatePropertyName = 'to';
+	return isValidArgDate(args, fistDatePropertyName) && isValidArgDate(args, secondDatePropertyName) && isDatesInOrder(args[fistDatePropertyName], args[secondDatePropertyName]);
 }
 
 // The protocol itself, each supported functionality
 // of the protocol will have its own function.
-function protocolDaily(args, request, response) {
-	if(isValidDailyArgs(args)) {
+function protocolDaily(args, response) {
+	if(isValidArgCountry(args) && isValidArgDate(args, 'date')) {
 		const country = covidAPI.parseCountry(args.country);
 		covidTempDatabase.getInfoAsync('history', {country: country, status: 'confirmed'})
-			.then(data => {
-				const currDateParsed = covidAPI.parseDate(args.date);
-				const prevDateParsed = covidAPI.parseDate(getPreviousDayDate(args.date));
-				const currDateConfirmed = data.dates[currDateParsed];
-				const prevDateConfirmed = data.dates[prevDateParsed];
-				if(currDateConfirmed === undefined)
-					return 0;
-				if(prevDateConfirmed === undefined)
-					return currDateConfirmed;
-				return Math.max(0, data.dates[currDateParsed] - data.dates[prevDateParsed]);
-			})
+			.then(data => calcDeathOrConfirmedAtDate(data.dates, args.date))
 			.then(result => respond(response, 'text/plain', 200, {message: result.toString()}))
+			.catch(error => {
+				if(error instanceof logger.LogInfo && error.status === 'args not found')
+					respond(response, 'text/plain', 404, {message: 'Invalid country name', error: error});
+				else
+					respond(response, 'text/plain', 500, {message: 'Something went wrong with the server.', error: error});
+			});
+	} else
+		respond(response, 'text/plain', 400, {message: `Incorrect arguments: ${JSON.stringify(args)}.`, error: `protocolDaily: ${JSON.stringify(args)}`});
+}
+
+function protocolCountryList(args, response) {
+	if(isValidArgUsername(args)) {
+		userDatabase.getCountriesString(args.username)
+			.then(countriesString => respond(response, 'application/json', 200, {message: countriesString}))
+			.catch(error => {
+				if(error instanceof logger.LogInfo && error.status === 'user not found')
+					respond(response, 'text/plain', 404, {message: 'User not found', error: error});
+				else
+					respond(response, 'text/plain', 500, {message: 'Something went wrong with the server.', error: error});
+			});
+	} else
+		respond(response, 'text/plain', 400, {message: `Incorrect arguments: ${JSON.stringify(args)}.`, error: `protocolCountryList: ${JSON.stringify(args)}`});
+}
+
+function protocolNumOfStatusCurry(status) {
+	if(!covidAPI.isValidStatus(status)) {
+		logger.logIt('error', `Wrong status in protocolNumOfStatusCurry() at start up: ${status}`, true);
+		process.exit(1);
+	}
+
+	return (args, response) => {
+		if (isValidArgUsername(args) && isValidArgFromToDate(args)) {
+			userDatabase.getCountries(args.username)
+				.then(countriesIter => {
+					let promisesData = [];
+					let currCountry = countriesIter.next();
+
+					while (!currCountry.done) {
+						promisesData.push(covidTempDatabase.getInfoAsync('history', {country: currCountry.value, status: status}));
+						currCountry = countriesIter.next();
+					}
+					return Promise.all(promisesData);
+				})
+				.then(countiesData => {
+					const result = {};
+
+					const dateFrom = dateStringToDateClass(args.from);
+					const dateTo = dateStringToDateClass(args.to);
+					for (const currDate = new Date(dateFrom.valueOf()); currDate <= dateTo; currDate.setDate(currDate.getDate() + 1)) {
+						const strCurrDate = dateClassToDateString(currDate);
+						for (const data of countiesData) {
+							// TODO: make it more efficient, calcDeathOrConfirmedAtDate does calculations twice.
+							if (result.hasOwnProperty(data.country))
+								result[data.country][strCurrDate] = calcDeathOrConfirmedAtDate(data.dates, strCurrDate);
+							else
+								result[data.country] = {[strCurrDate]: calcDeathOrConfirmedAtDate(data.dates, strCurrDate)};
+						}
+					}
+					return result;
+				})
+				.then(result => respond(response, 'application/json', 200, {message: JSON.stringify(result)}))
+				.catch(error => {
+					if (error instanceof logger.LogInfo) {
+						if (error.status === 'user not found')
+							respond(response, 'text/plain', 404, {message: 'User not found', error: error});
+						else if (error.status === 'args not found')
+							respond(response, 'text/plain', 404, {message: 'Country not found', error: error});
+						else
+							respond(response, 'text/plain', 500, {message: 'Something went wrong with the server.', error: error});
+					} else
+						respond(response, 'text/plain', 500, {message: 'Something went wrong with the server.', error: error});
+				});
+		} else
+			respond(response, 'text/plain', 400, {
+				message: `Incorrect arguments: ${JSON.stringify(args)}.`,
+				error: `protocolNumOfDeath: ${JSON.stringify(args)}`
+			});
+	};
+}
+
+function protocolHighestDeaths(args, response) {
+	// TODO
+}
+
+function protocolHighestConfirmed(args, response) {
+	// TODO
+}
+
+function protocolAddUser(args, response) {
+	if(isValidArgUsername(args)) {
+		userDatabase.addUser(args.username)
+			.then(wasAdded => respond(response, 'text/plain', wasAdded ? 201 : 208, {}))
 			.catch(error => respond(response, 'text/plain', 500, {message: 'Something went wrong with the server.', error: error}));
 	} else
-		respond(response, 'text/plain', 400, {message: `Incorrect arguments: ${JSON.stringify(args)}.`, error: `protocolDaily: ${JSON.stringify(args)}`})
+		respond(response, 'text/plain', 400, {message: `Incorrect arguments: ${JSON.stringify(args)}.`, error: `protocolAddUser: ${JSON.stringify(args)}`});
 }
 
-function protocolCountryList(args, request, response) {
-	// TODO
+function protocolEditCountryCurry(countryFunc) {
+	if(countryFunc !== userDatabase.addCountry && countryFunc !== userDatabase.deleteCountry) {
+		logger.logIt('error', 'Wrong countryFunc in protocolEditCountryCurry() at start up', true);
+		process.exit(1);
+	}
+
+	return (args, response) => {
+		if(isValidArgUsername(args) && isValidArgCountry(args)) {
+			countryFunc(args.username, args.country)
+				.then(wasAdded => respond(response, 'text/plain', wasAdded ? 201 : 208, {}))
+				.catch(error => {
+					if(error instanceof logger.LogInfo && error.status === 'unregistered user')
+						respond(response, 'text/plain', 404, {message: 'User not found', error: error});
+					else
+						respond(response, 'text/plain', 500, {message: 'Something went wrong with the server.', error: error});
+				});
+		} else
+			respond(response, 'text/plain', 400, {message: `Incorrect arguments: ${JSON.stringify(args)}.`, error: `protocolEditCountryCurry: ${JSON.stringify(args)}`});
+	}
 }
 
-function protocolNumOfDeath(args, request, response) {
-	// TODO
-}
-
-function protocolNumOfConfirmed(args, request, response) {
-	// TODO
-}
-
-function protocolHighestDeaths(args, request, response) {
-	// TODO
-}
-
-function protocolHighestConfirmed(args, request, response) {
-	// TODO
-}
-
-function protocolAddUser(args, request, response) {
-	// TODO
-}
-
-function protocolAddCountry(args, request, response) {
-	// TODO
-}
-
-function protocolRemoveCountry(args, request, response) {
-	// TODO
-}
-
+// A static object that contain the callback for each protocol.
 const supportedProtocols = {
-	GET: {
+	GET: { // All the functions must have signature: (args, response) => void
 		daily: protocolDaily,
 		countryList: protocolCountryList,
-		numOfDeath: protocolNumOfDeath,
-		numOfConfirmed: protocolNumOfConfirmed,
+		numOfDeath: protocolNumOfStatusCurry('deaths'),
+		numOfConfirmed: protocolNumOfStatusCurry('confirmed'),
 		highestDeaths: protocolHighestDeaths,
 		highestConfirmed: protocolHighestConfirmed
 	},
-	POST: {
+	POST: { // All the functions must have signature: (args, response) => void
 		addUser: protocolAddUser,
-		addCountry: protocolAddCountry,
-		removeCountry: protocolRemoveCountry
+		addCountry: protocolEditCountryCurry(userDatabase.addCountry),
+		removeCountry: protocolEditCountryCurry(userDatabase.deleteCountry)
 	}
 }
 
-// The server's event listeners.
-function requestHandler(request, response) {
-	const method = supportedProtocols[request.method];
-	if(method === undefined) {
-		const msg = `Request with unknown http method: ${request.method}`;
-		respond(response, 'text/plain', 400, {message: msg, error: msg});
-		return;
-	}
-
+function getRequestHandler(request, response, getMethods) {
 	const args = urlToArguments(request.url);
 	if(args.protocol === undefined) {
 		const msg = 'Request without protocol parameter';
@@ -198,13 +341,71 @@ function requestHandler(request, response) {
 		return;
 	}
 
-	const protocolFunction = method[args.protocol];
+	const protocolFunction = getMethods[args.protocol];
 	if(protocolFunction === undefined) {
 		const msg = `Request with unknown protocol: ${args.protocol}`;
 		respond(response, 'text/plain', 400, {message: msg, error: msg});
 		return;
 	}
-	protocolFunction(args, request, response);
+
+	protocolFunction(args, response);
+}
+
+function postRequestHandler(request, response, postMethods) {
+	if(request.headers['content-type'] !== 'application/json') {
+		const msg = 'POST request content-type has to be application/json';
+		respond(response, 'text/plain', 400, {message: msg, error: msg});
+		return;
+	}
+
+	let body = '';
+
+	request.on('data', chunk => {
+		body += chunk;
+		if (body.length > params.maxRequestBodySize)
+			request.destroy(new logger.LogInfo('error', 'client sent more data than params.maxRequestBodySize', true));
+	});
+
+	request.on('error', error => respond(response, 'text/plain', 413, {message: `Request body has more data than the server allowing to accept`, error: error}));
+
+	request.on('end', () => {
+		const jsonData = JSON.parse(body);
+
+		const protocolName = jsonData['protocol'];
+		if(protocolName === undefined) {
+			const msg = 'Request without protocol parameter';
+			respond(response, 'text/plain', 400, {message: msg, error: msg});
+			return;
+		}
+
+		const protocolFunction = postMethods[protocolName];
+		if(protocolFunction === undefined) {
+			const msg = `Request with unknown protocol: ${protocolName}`;
+			respond(response, 'text/plain', 400, {message: msg, error: msg});
+			return;
+		}
+
+		protocolFunction(jsonData, response);
+	});
+}
+
+// The server's event listeners.
+function requestHandler(request, response) {
+	// TODO: check the path, so we answer according to the path
+	const method = supportedProtocols[request.method];
+
+	switch (request.method) {
+		case 'GET':
+			getRequestHandler(request, response, method);
+			break;
+		case 'POST':
+			postRequestHandler(request, response, method);
+			break;
+		default: {
+			const msg = `Request with unknown http method: ${request.method}`;
+			respond(response, 'text/plain', 400, {message: msg, error: msg});
+		}
+	}
 }
 
 function listeningHandler() {

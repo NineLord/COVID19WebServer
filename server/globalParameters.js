@@ -12,6 +12,6 @@ module.exports = {
 																	(thus needs to query again the API).
 																	The number is in millisecond, so in our case 10 minutes.
 																	According to the API is shouldn't be any lower than 10 minutes. */
-	maxResponseBodySize: 1e6, // Cap for response's body size (~1MB).
+	maxResponseBodySize: 5e6, // Cap for response's body size (~5MB).
 	maxRequestBodySize: 1e6 // Cap for request's body size (~1MB).
 };

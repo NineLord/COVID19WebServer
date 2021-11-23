@@ -57,7 +57,7 @@ class UserDatabase {
 	async addCountry(username, country) {
 		const parsedUsername = UserDatabase.#parseUserName(username);
 		if(!this.#database.has(parsedUsername))
-			throw new logger.LogInfo('error', "Username didn't register before performing addCountry()", true);
+			throw new logger.LogInfo('unregistered user', "Username didn't register before performing addCountry()", true);
 
 		const countries = this.#database.get(parsedUsername);
 		if(countries.has(country))
@@ -79,7 +79,7 @@ class UserDatabase {
 	async deleteCountry(username, country) {
 		const parsedUsername = UserDatabase.#parseUserName(username);
 		if(!this.#database.has(parsedUsername))
-			throw new logger.LogInfo('error', "Username didn't register before performing deleteCountry()", true);
+			throw new logger.LogInfo('unregistered user', "Username didn't register before performing deleteCountry()", true);
 
 		const countries = this.#database.get(parsedUsername);
 		return countries.delete(country);
@@ -96,9 +96,26 @@ class UserDatabase {
 	async getCountries(username) {
 		const parsedUsername = UserDatabase.#parseUserName(username);
 		if(!this.#database.has(parsedUsername))
-			throw new logger.LogInfo('error', "Username didn't register before performing deleteCountry()", true);
+			throw new logger.LogInfo('unregistered user', "Username didn't register before performing deleteCountry()", true);
 
 		return this.#database.get(parsedUsername).values();
+	}
+
+	/**
+	 * Return a string representing the set of countries for the user.
+	 * @param username	<string> representing the username.
+	 * @return {Promise<string>}	country list as string.
+	 */
+	async getCountriesString(username) {
+		const parsedUsername = UserDatabase.#parseUserName(username);
+		if(!this.#database.has(parsedUsername))
+			throw new logger.LogInfo('unregistered user', "Username didn't register before performing deleteCountry()", true);
+
+		const countriesSet = this.#database.get(parsedUsername);
+		const countriesSetEntries = countriesSet.entries();
+		const countriesEntriesArray = Array.from(countriesSetEntries);
+		const countriesArray = countriesEntriesArray.map(entry => entry[0]);
+		return `[${countriesArray.toString()}]`
 	}
 
 	/* This data should be persistence between server shutdowns.
@@ -167,6 +184,24 @@ db.getCountries('shaked')
 		}
 	})
 	.catch(x => console.log(x));
+*/
+
+/*
+const db4 = new UserDatabase();
+db4.addUser('shaked')
+	.then(res => db4.addCountry('shaked', 'Israel'))
+	.then(res => db4.addCountry('shaked', 'foo'))
+	.then(res => db4.addCountry('shaked', 'goo'))
+	.then(res => db4.addUser('keren'))
+	.then(res => db4.getCountries('shaked'))
+	.then(iter => {
+		let d = iter.next();
+		while (!d.done) {
+			console.log(`iter=${d.value}`);
+			d = iter.next();
+		}
+	})
+	.catch(console.log);
 */
 
 /*

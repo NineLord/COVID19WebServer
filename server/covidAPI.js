@@ -4,6 +4,7 @@
 */
 const https = require('https');
 const params = require('./globalParameters');
+const logger = require('./logger');
 
 
 const optionsForHttpsGet = {
@@ -38,11 +39,16 @@ async function queryAsync(route, options) {
 		// Preforming the actual query
 		https.get(optionsForHttpsGet, response => {
 			let data = '';
-			response.on('data', chunk => data += chunk);
+			response.on('data', chunk => {
+				data += chunk;
+				if (data.length > params.maxResponseBodySize)
+					response.destroy(new logger.LogInfo('error', 'client sent more data than params.maxResponseBodySize', true));
+			});
+			response.on('error', reject);
 			response.on('end', () => {
 				const jsonData = JSON.parse(data);
 				if (jsonData['All'] === undefined)
-					reject(`Incorrect query input: route=${route}, options=${JSON.stringify(options)}`);
+					reject(new logger.LogInfo('args not found', `Incorrect query input: route=${route}, options=${JSON.stringify(options)}`, true));
 				else
 					resolve(jsonData);
 			});
@@ -71,10 +77,15 @@ function upperCaseFirstLetterRestLowerCase(country) {
 	return country.charAt(0).toUpperCase() + country.slice(1).toLowerCase();
 }
 
+function isValidStatus(status) {
+	return status === 'deaths' || status === 'confirmed';
+}
+
 module.exports = {
 	queryAsync: queryAsync,
 	parseDate: parseDate,
-	parseCountry: upperCaseFirstLetterRestLowerCase
+	parseCountry: upperCaseFirstLetterRestLowerCase,
+	isValidStatus: isValidStatus
 };
 
 /*
