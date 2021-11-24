@@ -34,6 +34,9 @@ Protocol base:
 http://`<hostname>`:`<port>`
 
 #### Daily new confirmed cases in a given country
+<details><summary>Click to Expand</summary>
+<p>
+
 * Method: `GET`.
 * Base: `/?protocol=daily`.
 * Required query parameters:
@@ -49,7 +52,14 @@ http://`<hostname>`:`<port>`
     ```
     1283
     ```
+
+</p>
+</details>
+
 #### Register a user
+<details><summary>Click to Expand</summary>
+<p>
+
 * Method: `POST`.
 * Base: `/`.
 * Body: `JSON`.
@@ -65,7 +75,14 @@ http://`<hostname>`:`<port>`
          --data '{"protocol": "addUser", "username":"Shimi"}' \
          "http://localhost:8080/"
     ```
+
+</p>
+</details>
+
 #### Add a country to user's list
+<details><summary>Click to Expand</summary>
+<p>
+
 * Method: `POST`.
 * Base: `/`.
 * Body: `JSON`.
@@ -82,7 +99,14 @@ http://`<hostname>`:`<port>`
          --data '{"protocol": "addCountry", "username":"Shimi", "country":"France"}' \
          "http://localhost:8080/"
     ```
+
+</p>
+</details>
+
 #### Remove a country to user's list
+<details><summary>Click to Expand</summary>
+<p>
+
 * Method: `POST`.
 * Base: `/`.
 * Body: `JSON`.
@@ -99,7 +123,14 @@ http://`<hostname>`:`<port>`
          --data '{"protocol": "removeCountry", "username":"Shimi", "country":"France"}' \
          "http://localhost:8080/"
     ```
+
+</p>
+</details>
+
 #### Get user's country list
+<details><summary>Click to Expand</summary>
+<p>
+
 * Method: `GET`.
 * Base: `/?protocol=countryList`.
 * Required query parameters:
@@ -117,7 +148,14 @@ http://`<hostname>`:`<port>`
       "Germany"
     ]
     ```
+
+</p>
+</details>
+
 #### Get the number of deaths cases for each country in the user's list at a given date range
+<details><summary>Click to Expand</summary>
+<p>
+
 * Method: `GET`.
 * Base: `/?protocol=numOfDeath`.
 * Required query parameters:
@@ -147,7 +185,14 @@ http://`<hostname>`:`<port>`
       }
     }
     ```
+
+</p>
+</details>
+
 #### Get the number of confirmed cases for each country in the user's list at a given date range
+<details><summary>Click to Expand</summary>
+<p>
+
 * Method: `GET`.
 * Base: `/?protocol=numOfConfirmed`.
 * Required query parameters:
@@ -177,7 +222,14 @@ http://`<hostname>`:`<port>`
       }
     }
     ```
+
+</p>
+</details>
+
 #### Get the country (from the user's list) with the highest deaths cases relative to the country population
+<details><summary>Click to Expand</summary>
+<p>
+
 * Method: `GET`.
 * Base: `/?protocol=highestDeaths`.
 * Required query parameters:
@@ -199,7 +251,14 @@ http://`<hostname>`:`<port>`
       "28-10-2021": "France"
     }
     ```
+
+</p>
+</details>
+
 #### Get the country (from the user's list) with the highest confirmed cases relative to the country population
+<details><summary>Click to Expand</summary>
+<p>
+
 * Method: `GET`.
 * Base: `/?protocol=highestConfirmed`.
 * Required query parameters:
@@ -221,6 +280,9 @@ http://`<hostname>`:`<port>`
       "28-10-2021": "France"
     }
     ```
+
+</p>
+</details>
 
 ## Further places to expand the project
 * Expand the logging system (logger.js). Currently, it's in his bare bones.
